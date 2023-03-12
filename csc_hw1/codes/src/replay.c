@@ -22,8 +22,10 @@ void tx_esp_rep(Dev dev,
     size_t nb = dlen;
 
     txp.plen = dlen;
+    // printf("%u\n", txp.plen);
     txp.fmt_rep(&txp, net.ip4hdr, data, nb);
     nb += sizeof(struct tcphdr);
+    // printf("%u\n", nb);
 
     esp.plen = nb;
     esp.fmt_rep(&esp, TCP);

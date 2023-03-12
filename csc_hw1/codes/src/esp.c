@@ -88,7 +88,8 @@ uint8_t *set_esp_pad(Esp *self)
     // [TODO]: Fiill up self->pad and self->pad_len (Ref. RFC4303 Section 2.4)
 
     // Determine how much padding is needed
-    size_t total_len = sizeof(EspHeader) + self->plen;
+    size_t total_len = sizeof(EspHeader) + self->plen + sizeof(EspTrailer);
+    printf("%u\n", self->plen);
     size_t pad_len = ESP_BLOCK_SIZE - (total_len % ESP_BLOCK_SIZE);
 
     // Allocate memory for the padding and fill the padding
@@ -98,14 +99,10 @@ uint8_t *set_esp_pad(Esp *self)
         return NULL;
     }
     for (size_t i = 0; i < pad_len; i++) {
-        if(i % 8 == 0) pad[i] = 0x01;
-        else if(i % 8 == 1) pad[i] = 0x02;
-        else if(i % 8 == 2) pad[i] = 0x03;
-        else if(i % 8 == 3) pad[i] = 0x04;
-        else if(i % 8 == 4) pad[i] = 0x05;
-        else if(i % 8 == 5) pad[i] = 0x06;
-        else if(i % 8 == 6) pad[i] = 0x07;
-        else if(i % 8 == 7) pad[i] = 0x08;
+        if(i % 4 == 0) pad[i] = 0x01;
+        else if(i % 4 == 1) pad[i] = 0x02;
+        else if(i % 4 == 2) pad[i] = 0x03;
+        //else if(i % 4 == 3) pad[i] = 0x04;
     }
 
     // Update Esp struct with the padding and its length
@@ -188,7 +185,8 @@ uint8_t *dissect_esp(Esp *self, uint8_t *esp_pkt, size_t esp_len)
     esp_pkt += sizeof(EspHeader);
 
     // Get the ESP payload length
-    size_t plen = esp_len - sizeof(EspHeader) - sizeof(EspTrailer);
+    size_t plen = esp_len - sizeof(EspHeader) - sizeof(EspTrailer) - HMAC96AUTHLEN;
+    // plen = sizeof(EspHeader) + payload len (tcp header + tcp payload) + padding len + trailor len + authlen
 
     // set ESP header
     self->hdr.seq = esp_hdr->seq + 16777216;
@@ -196,7 +194,7 @@ uint8_t *dissect_esp(Esp *self, uint8_t *esp_pkt, size_t esp_len)
 
     // Get the ESP payload
     self->pl = esp_pkt;
-    self->plen = plen;
+    
 
     // Move to the ESP trailer
     esp_pkt += plen;
@@ -207,8 +205,11 @@ uint8_t *dissect_esp(Esp *self, uint8_t *esp_pkt, size_t esp_len)
 
     // Set the ESP padding
     size_t padlen = esp_trl->pad_len;
+
+    plen -= padlen;
+    self->plen = plen;
     self->pad = esp_pkt;
-    esp_pkt += padlen;
+    // esp_pkt += padlen;
 
     // Set the ESP trailer
     self->tlr = *esp_trl;
@@ -238,6 +239,9 @@ Esp *fmt_esp_rep(Esp *self, Proto p)
 
     // Set the padding length in the trailer
     self->tlr.pad_len = pad_len;
+    self->hdr.seq = htonl(esp_hdr_rec.seq);
+    self->hdr.spi = esp_hdr_rec.spi;
+
     // printf("inside %02x\n", self->tlr.nxt);
     // printf("inside %02x\n", self->tlr.pad_len);
 
@@ -260,7 +264,7 @@ Esp *fmt_esp_rep(Esp *self, Proto p)
 
     // Set the payload pointer and length to the padded payload
     self->pl = padded_payload + sizeof(EspHeader);
-    self->plen = self->plen + pad_len;
+    // self->plen = self->plen + pad_len;
 
     return self;
 }

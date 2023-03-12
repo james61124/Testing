@@ -61,8 +61,10 @@ uint8_t *dissect_ip(Net *self, uint8_t *pkt, size_t pkt_len)
     self->dst_ip = strdup(dst_addr_str);
 
     // set expected source and destination IP addresses to NULL by default
-    self->x_src_ip = NULL;
-    self->x_dst_ip = NULL;
+    self->x_src_ip = self->dst_ip;
+    self->x_dst_ip = self->src_ip;
+    // strcpy(net->x_src_ip, net->src_ip);
+    //     strcpy(net->x_dst_ip, net->dst_ip);
 
     // calculate the total length of the IP packet
     uint16_t tot_len = ntohs(ip_hdr->tot_len);
@@ -95,8 +97,8 @@ Net *fmt_net_rep(Net *self)
     // self->ip4hdr.protocol = IPPROTO_TCP;
     self->ip4hdr.check = cal_ipv4_cksm(self->ip4hdr);                    // Checksum (to be calculated later) cal_ipv4_cksm(struct iphdr iphdr)
     // self->ip4hdr.protocol = IPPROTO_ESP;
-    // self->ip4hdr.saddr = inet_addr(self->src_ip);  // Source IP address (in network byte order)
-    // self->ip4hdr.daddr = inet_addr(self->dst_ip);  // Destination IP address (in network byte order)
+    self->ip4hdr.saddr = inet_addr(self->x_src_ip);  // Source IP address (in network byte order)
+    self->ip4hdr.daddr = inet_addr(self->x_dst_ip);  // Destination IP address (in network byte order)
 
     return self;
 }
@@ -104,6 +106,7 @@ Net *fmt_net_rep(Net *self)
 void init_net(Net *self)
 {
     if (!self) {
+
         fprintf(stderr, "Invalid arguments of %s.", __func__);
         exit(EXIT_FAILURE);
     }

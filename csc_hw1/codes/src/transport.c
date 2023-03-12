@@ -80,6 +80,8 @@ uint8_t *dissect_tcp(Net *net, Txp *self, uint8_t *segm, size_t segm_len)
     // (Check IP addr & port to determine the next seq and ack value)
     // Return payload of TCP
 
+
+    // tcp header => 
     // Check that the packet length is at least the size of the TCP header
     if (segm_len < sizeof(struct tcphdr)) {
         return NULL;
@@ -101,12 +103,18 @@ uint8_t *dissect_tcp(Net *net, Txp *self, uint8_t *segm, size_t segm_len)
     self->pl = segm + self->hdrlen;
     
     // Update the expected TX sequence and acknowledgement numbers
-    if (net->pro == TCP && self->x_src_port == ntohs(self->thdr.th_sport) && self->x_dst_port == ntohs(self->thdr.th_dport)) {
-        self->x_tx_seq += self->plen;
-        if (self->thdr.th_flags & TH_ACK) {
-            self->x_tx_ack = ntohl(self->thdr.th_ack);
-        }
-    }
+    // if (net->pro == TCP && self->x_src_port == ntohs(self->thdr.th_sport) && self->x_dst_port == ntohs(self->thdr.th_dport)) {
+    //     self->x_tx_seq += self->plen;
+    //     if (self->thdr.th_flags & TH_ACK) {
+    //         self->x_tx_ack = ntohl(self->thdr.th_ack);
+    //     }
+    // }
+
+    self->x_tx_seq = ntohl(self->thdr.th_ack);
+    self->x_tx_ack = ntohl(self->thdr.th_seq) + self->plen;
+    // printf("plen: %u\n", self->plen);
+    self->x_src_port = ntohs(self->thdr.th_dport);
+    self->x_dst_port = ntohs(self->thdr.th_sport);
 
     return self->pl;
 
@@ -117,16 +125,18 @@ Txp *fmt_tcp_rep(Txp *self, struct iphdr iphdr, uint8_t *data, size_t dlen)
     // [TODO]: Fill up self->tcphdr (prepare to send)
 
     // Set the TCP source and destination ports
-    self->thdr.source = htons(self->x_src_port);
-    self->thdr.dest = htons(self->x_dst_port);
+    self->thdr.th_sport = htons(self->x_src_port);
+    self->thdr.th_dport = htons(self->x_dst_port);
 
     // Set the TCP sequence and acknowledge numbers
-    self->thdr.seq = htonl(self->x_tx_seq);
+    self->thdr.th_seq = htonl(self->x_tx_seq);
     // printf("%d\n", self->x_tx_seq);
-    self->thdr.ack_seq = htonl(self->x_tx_ack);
+    self->thdr.th_ack = htonl(self->x_tx_ack);
 
     // Set the TCP data offset (header length)
     self->hdrlen = sizeof(struct tcphdr);
+
+    if(dlen==0) self->thdr.psh = 0;
 
     // Set the TCP flags
     // self->thdr.fin = 0;
@@ -146,7 +156,7 @@ Txp *fmt_tcp_rep(Txp *self, struct iphdr iphdr, uint8_t *data, size_t dlen)
     self->thdr.check = cal_tcp_cksm(iphdr, self->thdr, data, dlen);
 
     // Set the TCP urgent pointer to 0
-    self->thdr.urg_ptr = 0;
+    //self->thdr.urg_ptr = 0;
 
     // Set the TCP payload and payload length
     self->pl = data;

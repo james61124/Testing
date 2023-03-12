@@ -167,8 +167,8 @@ void fmt_frame(Dev *self, Net net, Esp esp, Txp txp)
 
     // copy the TCP header
     memcpy(self->frame + 14 + sizeof(struct iphdr) + sizeof(EspHeader), &txp.thdr, txp.hdrlen);
-    printf("%02x\n", txp.thdr.th_sport);
-    printf("%d\n", txp.hdrlen);
+    // printf("%02x\n", txp.thdr.th_sport);
+    // printf("%d\n", txp.hdrlen);
 
     // copy the TCP payload
     memcpy(self->frame + 14 + sizeof(struct iphdr) + sizeof(EspHeader) + txp.hdrlen, txp.pl, txp.plen);
